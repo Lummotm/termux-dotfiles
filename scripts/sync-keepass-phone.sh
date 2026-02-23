@@ -5,6 +5,15 @@ source ~/.termux_device_info 2>/dev/null || TERMUX_DEVICE_NAME="móvil"
 repo="$HOME/keepass"
 shared="$HOME/storage/shared/keepass/"
 
+check_connection() {
+    if ! git ls-remote "$repo" >/dev/null 2>&1; then
+        echo "⚠️ Error: No hay conexión con el repositorio remoto o falta la clave SSH."
+        echo "Sincronización abortada."
+        exit 1
+    fi
+}
+check_connection
+
 mkdir -p "$shared"
 
 echo " 1. Sincronizando desde carpeta del móvil al repositorio (solo archivos más recientes)..."

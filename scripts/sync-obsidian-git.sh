@@ -9,6 +9,15 @@ shared="$HOME/storage/shared/obsidian"
 max_retries=3
 retry_delay=5
 
+check_connection() {
+    if ! git ls-remote "$repo" >/dev/null 2>&1; then
+        echo "⚠️ Error: No hay conexión con el repositorio remoto o falta la clave SSH."
+        echo "Sincronización abortada."
+        exit 1
+    fi
+}
+check_connection
+
 # Función para manejar errores de Git
 handle_git_error() {
     echo " Error detectado en operación Git. Limpiando estado..."

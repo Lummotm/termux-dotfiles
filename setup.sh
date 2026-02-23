@@ -33,4 +33,10 @@ read -p "Introduce tu nombre de GitHub: " GIT_USER
 git config --global user.email "$GIT_EMAIL"
 git config --global user.name "$GIT_USER"
 
+echo "Haciendo setup de contraseña para posterior ssh"
+passwd
+
+mkdir -p ~/storage/shared/Obsidian
+mkdir -p ~/storage/shared/Keepass
+
 echo "Configuración completada."
