@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+LOG="$HOME/logs/sync-repo.log"
+trap "exit" SIGINT SIGTERM
+LOOP=false
+REPOS=()
+
+log() { echo "[$(date '+%H:%M')] $1" >>"$LOG"; }
+
+sync_push() {
+    log "Pushing $1"
+    if ! git push; then
+        git pull --rebase && git push || log "Push failed: $1"
+    fi
+}
+
+sync_local() {
+    git add -A
+    git diff --cached --name-only | grep -q "workspace.json" && git reset .obsidian/workspace.json 2>/dev/null
+
+    if ! git diff --cached --quiet; then
+        git commit -m "Sync: $(date '+%F %H:%M')"
+        nslookup github.com &>/dev/null && sync_push "$1"
+    fi
+}
+
+sync_remote() {
+    git fetch
+    [ "$(git rev-parse @)" != "$(git rev-parse @{u})" ] && git pull --rebase
+}
+
+process_repo() {
+    cd "$1" || return
+    [[ -n "$(git status --porcelain)" ]] && sync_local "$(basename "$1")"
+    nslookup github.com &>/dev/null && sync_remote "$(basename "$1")"
+}
+
+# Args parsing
+for i in "$@"; do
+    [[ "$i" == "--loop" ]] && LOOP=true || REPOS+=("$i")
+done
+
+# Main loop
+while true; do
+    for r in "${REPOS[@]}"; do process_repo "$r"; done
+    [[ "$LOOP" == "false" ]] && break
+    sleep 60
+done
