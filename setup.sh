@@ -15,7 +15,7 @@ mkdir -p ~/scripts
 mkdir -p ~/keepass
 mkdir -p ~/obsidian
 
-cp bashrc ~/.bashrc
+cp .bashrc ~/.bashrc
 cp config.fish ~/.config/fish/config.fish
 cp scripts/*.sh ~/scripts/
 
