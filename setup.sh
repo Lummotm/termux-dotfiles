@@ -8,15 +8,15 @@ echo "export TERMUX_DEVICE_NAME='$DISP_NAME'" >~/.termux_device_info
 echo "Nombre del dispositivo guardado como: $DISP_NAME"
 
 pkg update && pkg upgrade -y
-pkg install fish nvim git rsync openssh termux-api starship -y
+pkg install fish neovim git rsync openssh termux-api starship -y
 
 mkdir -p ~/.config/fish
 mkdir -p ~/scripts
 mkdir -p ~/keepass
 mkdir -p ~/obsidian
 
-cp .bashrc ~/.bashrc
-cp config.fish ~/.config/fish/config.fish
+cp bashrc ~/.bashrc
+cp fish/config.fish ~/.config/fish/config.fish
 cp scripts/*.sh ~/scripts/
 
 if ! grep -q "termux_device_info" ~/.bashrc; then
