@@ -33,10 +33,17 @@ read -p "Introduce tu nombre de GitHub: " GIT_USER
 git config --global user.email "$GIT_EMAIL"
 git config --global user.name "$GIT_USER"
 
-echo "Haciendo setup de contraseña para posterior ssh"
+echo "De una contraseña para conectar facilmente al hacer ssh"
 passwd
 
-mkdir -p ~/storage/shared/Obsidian
-mkdir -p ~/storage/shared/Keepass
+# Asumo que la copia que haya de obsidian esta mal si es que hay una
+mkdir ~/storage/shared/obsidian-copia
+cp ~/storage/shared/obsidian ~/storage/shared/obsidian-copia
+
+rm -rf ~/storage/shared/obsidian
+rm -rf ~/storage/shared/keepass
+
+mkdir -p ~/storage/shared/obsidian
+mkdir -p ~/storage/shared/keepass
 
 echo "Configuración completada."
