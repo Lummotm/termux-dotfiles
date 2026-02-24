@@ -1,8 +1,9 @@
 if status is-interactive
     set -g fish_greeting
-    if not set -q SSH_CONNECTION
-        setsid bash ~/scripts/sync-git-phone.sh >> ~/sync-git.log 2>&1 && echo "Sincronización finalizada"
-    end
+    # Por ahora no hago auto guardado / clonado
+    # if not set -q SSH_CONNECTION
+    #     setsid bash ~/scripts/sync-git-phone.sh >> ~/sync-git.log 2>&1 && echo "Sincronización finalizada"
+    # end
 
     function startssh
         if pgrep -x sshd > /dev/null
