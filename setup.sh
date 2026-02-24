@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
+for arg in "$@"; do
+    if [ "$arg" == "--sync" ]; then
+        cd ~/termux-dotfiles
+        git pull origin main
+        [ -f bashrc ] && cp -u bashrc ~/.bashrc
+        [ -d fish ] && cp -ru fish/* ~/.config/fish/
+        [ -d scripts ] && cp -u scripts/*.sh ~/scripts/
+        exit 0
+    fi
+done
+
 echo "Iniciando configuración de Termux..."
 
-# 1. Información del dispositivo
 if [ ! -f ~/.termux_device_info ]; then
     read -p "Introduce el nombre para este dispositivo (ej. movil-personal): " DISP_NAME
     echo "export TERMUX_DEVICE_NAME='$DISP_NAME'" >~/.termux_device_info
