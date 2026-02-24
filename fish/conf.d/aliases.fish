@@ -1,1 +1,1 @@
-alias snf "$HOME/scripts/sync-obsidian-git.sh"
+alias snf "$HOME/scripts/sync-obsidian-git.sh -f"
