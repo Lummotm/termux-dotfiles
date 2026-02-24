@@ -11,6 +11,7 @@ FORCE_LOCAL=false
 for arg in "$@"; do
     if [[ "$arg" == "-f" || "$arg" == "--force" ]]; then
         FORCE_LOCAL=true
+        echo "FORCING LOCAL"
     fi
 done
 
