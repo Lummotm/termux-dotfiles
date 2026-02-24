@@ -14,9 +14,12 @@ else
 fi
 
 # 2. Instalación de paquetes (solo si no están)
-echo "Actualizando y verificando paquetes..."
-pkg update && pkg upgrade -y
-pkg install fish neovim git rsync openssh termux-api starship -y
+read -p "¿Quieres actualizar?(si/no) (default no)" UPDATE
+if [[ "$UPDATE" == "si" ]]; then
+    echo "Actualizando y verificando paquetes..."
+    pkg update && pkg upgrade -y
+    pkg install fish neovim git rsync openssh termux-api starship -y
+fi
 
 # 3. Directorios base
 mkdir -p ~/.config/fish ~/scripts ~/keepass ~/obsidian
