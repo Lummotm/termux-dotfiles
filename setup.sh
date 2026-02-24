@@ -8,7 +8,7 @@ for arg in "$@"; do
         [ -f bashrc ] && cp -u bashrc ~/.bashrc
         [ -d fish ] && cp -ru fish/* ~/.config/fish/
         [ -d scripts ] && cp -u scripts/*.sh ~/scripts/
-        source ~/.config/fish/config.fish
+        exec fish
         clear
         exit 0
     fi
