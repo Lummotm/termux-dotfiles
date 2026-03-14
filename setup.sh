@@ -22,6 +22,7 @@ for arg in "$@"; do
         [ -d fish ] && cp -ru fish/* ~/.config/fish/
         [ -d scripts ] && cp -u scripts/* ~/scripts/
         [ -d termux ] && cp -ru termux/* ~/.termux/
+        cp ~/termux-dotfiles/termux/termux.properties ~/.termux/termux.properties
         clear
         exec fish
     fi
