@@ -1,106 +1,129 @@
+#!/usr/bin/env python3
 import os
-import shutil
-from datetime import datetime
-from sys import argv
+import re
+import sys
+import uuid
 
-if len(argv) > 1:
-    notes_dir = argv[1]
+if len(sys.argv) > 1:
+    NOTES_DIR = sys.argv[1]
 else:
-    notes_dir = os.path.expanduser("~/Documents/Obsidian")
+    NOTES_DIR = os.path.expanduser("~/Documents/Obsidian/")
 
-excluded_keywords = {"attachments", "excalidraw", ".git"}
-priority_tags = {"#math", "#urgent"}
-todo_note = "01_todo.md"
-todo_priority = "00_todo_priority.md"
-
-tasks_to_sync = {}
-tagged_tasks = {}
-normal_tasks = {}
+EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault", "seguimiento"}
+PRIORITY_TAGS = {"#urgent", "#math"}
+TODO_NOTE = "01_todo_inbox.md"
+TODO_PRIORITY = "00_todo.md"
 
 
-def modify_completed(filepath, tasks):
-    tmp_path = filepath + ".temp"
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as file:
-        with open(tmp_path, "w", encoding="utf-8") as tmp:
-            for line in file:
-                if line.startswith("- [ ]"):
-                    clean = line.replace("- [ ]", "").strip()
-                    if clean in tasks:
-                        tmp.write(f"- [x] {clean}\n")
-                        continue
-                tmp.write(line)
-    shutil.move(tmp_path, filepath)
+ID_PATTERN = re.compile(r"\^[a-z0-9]{8}")
+TAG_PATTERN = re.compile(r"#[a-zA-Z0-9/]+")
 
 
-def get_sort_key(filename):
-    name = filename.replace(".md", "")
-    try:
-        return datetime.strptime(name, "%d-%m-%Y").strftime("%Y-%m-%d")
-    except ValueError:
-        return "9999-99-99" + name
+def generate_id():
+    return f" ^{uuid.uuid4().hex[0:8]}"
 
 
-# Leer tareas completadas de los archivos To-Do
-for todo_file in [todo_note, todo_priority]:
-    path = os.path.join(notes_dir, todo_file)
-    if not os.path.exists(path):
-        continue
+def process_line(line):
+    clean_line = line.rstrip()
+    if clean_line.lstrip().startswith("- [ ]") and not ID_PATTERN.search(clean_line):
+        return f"{clean_line}{generate_id()}\n"
+    return line
 
-    current_source = None
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.startswith("### From [["):
-                current_source = line.split("[[")[1].split("]]")[0]
-                if current_source not in tasks_to_sync:
-                    tasks_to_sync[current_source] = []
-            elif line.startswith("- [x]") and current_source:
-                tasks_to_sync[current_source].append(line.replace("- [x]", "").strip())
 
-# Procesar todas las notas en un solo recorrido
-for root, _, files in os.walk(notes_dir):
-    # No considerar carpetas que contengan las keywords, uso .lower por si decido cambiar el casing
-    if any(kw in root.lower() for kw in excluded_keywords):
-        continue
+inbox_tasks = []
+priority_tasks = {}
 
-    for file in sorted(files, key=get_sort_key):
-        if (
-            not file.endswith(".md")
-            or file in [todo_note, todo_priority]
-            or file.startswith(".")
-        ):
+for root, dirs, files in os.walk(NOTES_DIR):
+    dirs[:] = [
+        d
+        for d in dirs
+        if not d.startswith(".")
+        and not any(kw in d.lower() for kw in EXCLUDING_KEYWORDS)
+    ]
+
+    for file in files:
+        if not file.endswith(".md") or file in {TODO_NOTE, TODO_PRIORITY}:
             continue
+        file_path = os.path.join(root, file)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except Exception:
+            continue
+        file_changed = False
 
-        filepath = os.path.join(root, file)
-        name = file.replace(".md", "")
+        new_lines = []
+        for line in lines:
+            processed_line = process_line(line)
 
-        # Sincronizar si hay tareas completadas
-        if name in tasks_to_sync and tasks_to_sync[name]:
-            modify_completed(filepath, tasks_to_sync[name])
+            if line != processed_line:
+                file_changed = True
+            new_lines.append(processed_line)
 
-        # Recolectar tareas pendientes actualizadas
-        with open(filepath, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.startswith("- [ ]"):
-                    content = line.strip() + "\n"
-                    target_dict = (
-                        tagged_tasks
-                        if any(tg in line for tg in priority_tags)
-                        else normal_tasks
-                    )
-                    if name not in target_dict:
-                        target_dict[name] = []
-                    target_dict[name].append(content)
+            if processed_line.lstrip().startswith("- [ ]"):
+                tags = TAG_PATTERN.findall(processed_line)
 
+                clean_task = processed_line.rstrip()
+                nombre_nota = file.replace(".md", "")
+                clean_task = f"{clean_task} [[{nombre_nota}]]"
 
-# Escribir archivos finales con links funcionales
-def write_to_file(filename, tasks_dict):
-    path = os.path.join(notes_dir, filename)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(f"---\nid: {filename}\ntags: []\n---\n")
-        for source, task_list in tasks_dict.items():
-            f.write(f"\n### From [[{source}]]\n")
-            f.writelines(task_list)
+                if tags:
+                    first_tag = tags[0]
+
+                    if first_tag not in priority_tasks:
+                        priority_tasks[first_tag] = []
+
+                    priority_tasks[first_tag].append(clean_task)
+
+                else:
+                    inbox_tasks.append(clean_task)
+
+        if file_changed:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
 
 
-write_to_file(todo_priority, tagged_tasks)
-write_to_file(todo_note, normal_tasks)
+def sort_key(tag):
+    if "#urgent" in tag:
+        return 0, tag
+    if "#math" in tag:
+        return 1, tag
+
+    return 999, tag
+
+
+inbox_path = os.path.join(NOTES_DIR, TODO_NOTE)
+
+with open(inbox_path, "w", encoding="utf-8") as f:
+    f.write("---\n")
+    f.write(f"id: {TODO_NOTE.replace('.md', '')}\n")
+    f.write("tags: []\n")
+    f.write("aliases: []\n")
+    f.write("---\n\n")
+
+    f.write("# 📥 Inbox\n\n")
+    if not inbox_tasks:
+        f.write("No hay tareas pendientes.\n")
+    else:
+        for t in inbox_tasks:
+            f.write(f"{t}\n")
+
+priority_path = os.path.join(NOTES_DIR, TODO_PRIORITY)
+with open(priority_path, "w", encoding="utf-8") as f:
+    f.write("---\n")
+    f.write(f"id: {TODO_PRIORITY.replace('.md', '')}\n")
+    f.write("tags: []\n")
+    f.write("aliases: []\n")
+    f.write("---\n\n")
+
+    f.write("# 🏷️ Tareas por Tag\n\n")
+    if not priority_tasks:
+        f.write("No hay tareas tageadas.\n")
+    else:
+        sorted_tags = sorted(priority_tasks.keys(), key=sort_key)
+        for tag in sorted_tags:
+            tag_str = tag.replace("#", "")
+            f.write(f"## {tag_str}\n")
+            for t in priority_tasks[tag]:
+                f.write(f"{t}\n")
+            f.write("\n")
