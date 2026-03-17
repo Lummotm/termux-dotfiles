@@ -17,9 +17,9 @@ done
 rsync -av --update "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
-
 git config core.fileMode false
 
+# Gestión de cambios
 git add -A
 if ! git diff --cached --quiet; then
     git commit -m "$COMMIT_MESSAGE"
@@ -29,13 +29,19 @@ if [ "$FORCE_LOCAL" = true ]; then
     git fetch origin
     git push origin main --force
 else
+    # El pull rebase con autostash es lo más seguro para no perder notas
     if ! git pull --rebase --autostash origin main; then
+        termux-toast "Conflicto detectado. Abortando para proteger archivos."
         git rebase --abort
-        termux-toast "Conflicto en Git. Resuelve en el PC o revisa los archivos."
         exit 1
     fi
     git push origin main
 fi
 
+# Post-procesado y actualización de la UI de Obsidian
 python3 "$HOME/scripts/update-todos.py" "$REPO_DIR"
-rsync -avu --delete "$REPO_DIR/" "$SHARED_DIR/"
+
+# Importante: rsync con --delete solo al final para que el móvil vea lo que bajó de Git
+rsync -avu --delete --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+
+termux-toast "Sincronización completa"
