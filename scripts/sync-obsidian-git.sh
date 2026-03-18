@@ -4,36 +4,40 @@ set -e
 source "$HOME/.termux_device_info" 2>/dev/null || TERMUX_DEVICE_NAME="mobile"
 REPO_DIR="$HOME/obsidian"
 SHARED_DIR="$HOME/storage/shared/obsidian"
-FORCE_LOCAL=false
 
 COMMIT_MESSAGE="Sync ($TERMUX_DEVICE_NAME) $(date '+%Y-%m-%d %H:%M')"
+
+FORCE_LOCAL=false
+FORCE_EXTERNAL=false
 
 for arg in "$@"; do
     if [[ "$arg" == "-f" || "$arg" == "--force" ]]; then
         FORCE_LOCAL=true
+    elif [[ "$arg" == "-fe" || "$arg" == "--force-external" ]]; then
+        FORCE_EXTERNAL=true
     fi
 done
 
 rsync -av --update "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
-git config core.fileMode false
 
-# Gestión de cambios
-git add -A
-if ! git diff --cached --quiet; then
-    git commit -m "$COMMIT_MESSAGE"
-fi
-
-if [ "$FORCE_LOCAL" = true ]; then
-    git fetch origin
+if [ "$FORCE_EXTERNAL" = true ]; then
+    echo "Forzando actualización desde el servidor..."
+    git fetch origin main
+    git reset --hard origin/main
+    # Después del reset, el rsync final se encargará de llevarlo a SHARED_DIR
+elif [ "$FORCE_LOCAL" = true ]; then
+    git add -A
+    git commit -m "$COMMIT_MESSAGE" || true
     git push origin main --force
 else
-    # El pull rebase con autostash es lo más seguro para no perder notas
-    if ! git pull --rebase --autostash origin main; then
-        git rebase --abort
-        exit 1
+    # Tu flujo normal de pull/push
+    git add -A
+    if ! git diff --cached --quiet; then
+        git commit -m "$COMMIT_MESSAGE"
     fi
+    git pull --rebase --autostash -Xours origin main
     git push origin main
 fi
 
