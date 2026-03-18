@@ -2,6 +2,7 @@
 
   --- GUÍA DE SUPERVIVENCIA TERMUX ---
 
+  CLC   -> Clear screen
   SYNC  -> Sync normal (pull + push).
   F-LOC -> Fuerza tu versión LOCAL al servidor.
   F-EXT -> Borra todo y baja lo del SERVIDOR.
