@@ -5,3 +5,4 @@ alias sn "$HOME/scripts/sync-obsidian-git.sh" #sync notes
 alias startssh "$HOME/scripts/startssh.sh"
 alias clc "clear"
 alias gs "cd $HOME/obsidian && git status && cd -"
+alias help-config "bat -pp ~/termux-dotfiles/help_config.md"
