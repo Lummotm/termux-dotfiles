@@ -5,7 +5,7 @@ source "$HOME/.termux_device_info" 2>/dev/null || TERMUX_DEVICE_NAME="móvil"
 REPO_DIR="$HOME/keepass"
 SHARED_DIR="$HOME/storage/shared/keepass"
 
-rsync -av --delete "$SHARED_DIR/" "$REPO_DIR/"
+rsync -a --delete "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
 
@@ -26,4 +26,4 @@ fi
 
 git push origin main
 
-rsync -av --delete "$REPO_DIR/" "$SHARED_DIR/"
+rsync -a --delete "$REPO_DIR/" "$SHARED_DIR/"

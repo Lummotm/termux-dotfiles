@@ -6,7 +6,7 @@ SHARED_DIR="$HOME/storage/shared/obsidian"
 
 COMMIT_MESSAGE="Sync ($TERMUX_DEVICE_NAME) $(date '+%Y-%m-%d %H:%M')"
 
-rsync -av --delete --exclude ".git/" "$SHARED_DIR/" "$REPO_DIR/"
+rsync -a --delete --exclude ".git/" "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
 
@@ -40,4 +40,4 @@ fi
 
 python3 "$HOME/scripts/update-todos.py" "$REPO_DIR"
 
-rsync -av --delete --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+rsync -a --delete --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
