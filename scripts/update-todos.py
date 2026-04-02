@@ -9,29 +9,24 @@ if len(sys.argv) > 1:
 else:
     NOTES_DIR = os.path.expanduser("~/Documents/Obsidian/")
 
-EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault", "seguimiento"}
+EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault"}
 TODO_NOTE = "01_todo_inbox.md"
 TODO_PRIORITY = "00_todo.md"
 
-ID_PATTERN = re.compile(r"\^([a-z0-9]{8})")
-# TAG_PATTERN = re.compile(r"#[a-zA-Z0-9/]+") gemini lo mejoro para meter - no se como se lee eso la vd
-TAG_PATTERN = re.compile(r"(?<!\S)#[a-zA-Z0-9/\-_]+(?!\S)")
+ID_PATTERN = r"\^([a-z0-9]{8})"
+TAG_PATTERN = r"(?<!\S)#[a-zA-Z0-9/]+(?!\S)"
 
 
 def generate_id():
-    return f" ^{uuid.uuid4().hex[0:8]}"
+    return f"^{uuid.uuid4().hex[0:8]}"
+
+
+def is_task(line):
+    s = line.lstrip()
+    return s.startswith("- [ ]") or s.startswith("- [x]") or s.startswith("- [X]")
 
 
 def sync_back_tasks():
-    """
-    Sincroniza texto y estado desde los TODOs hacia las notas originales.
-    Utiliza la fecha de modificación (mtime) para asegurar que solo el
-    archivo modificado más recientemente sobrescribe al otro.
-    """
-    TODO_TASK_PATTERN = re.compile(
-        r"^\s*-\s*\[([ xX])\]\s+(.*?)\s+(\^[a-z0-9]{8})\s*\[\[(.*?)\]\]\s*$"
-    )
-
     updates_by_note = {}
     todo_files = [
         os.path.join(NOTES_DIR, TODO_NOTE),
@@ -46,21 +41,39 @@ def sync_back_tasks():
 
         with open(todo_path, "r", encoding="utf-8") as f:
             for line in f:
-                match = TODO_TASK_PATTERN.match(line)
-                if match:
-                    status = match.group(1).lower()
-                    text = match.group(2).strip()
-                    task_id = match.group(3)
-                    note_name = match.group(4)
+                if not is_task(line):
+                    continue
 
-                    if note_name not in updates_by_note:
-                        updates_by_note[note_name] = {}
+                status = line.lstrip()[3]
 
-                    updates_by_note[note_name][task_id] = {
+                id_match = re.search(ID_PATTERN, line)
+                if not id_match:
+                    continue
+                task_id = id_match.group(0)
+
+                link_start = line.find("[[")
+                link_end = line.find("]]")
+                if link_start == -1 or link_end == -1:
+                    continue
+                note_name = line[link_start + 2 : link_end]
+
+                text_start_idx = line.find("]") + 2
+                text_end_idx = line.find(task_id)
+                text = line[text_start_idx:text_end_idx].strip()
+
+                if note_name not in updates_by_note:
+                    updates_by_note[note_name] = {}
+
+                if task_id not in updates_by_note[note_name]:
+                    updates_by_note[note_name][task_id] = []
+
+                updates_by_note[note_name][task_id].append(
+                    {
                         "status": status,
                         "text": text,
                         "todo_mtime": todo_mtime,
                     }
+                )
 
     if not updates_by_note:
         return
@@ -75,13 +88,9 @@ def sync_back_tasks():
         ]
         for file in files:
             if file.endswith(".md"):
-                note_name_without_ext = file[:-3]
-                if note_name_without_ext in updates_by_note:
-                    note_paths[note_name_without_ext] = os.path.join(root, file)
-
-    ORIGINAL_TASK_PATTERN = re.compile(
-        r"^(\s*-\s*\[)[ xX](\]\s+)(.*?)\s+(\^[a-z0-9]{8})\s*$"
-    )
+                note_name = file[:-3]
+                if note_name in updates_by_note:
+                    note_paths[note_name] = os.path.join(root, file)
 
     for note_name, tasks_to_update in updates_by_note.items():
         if note_name not in note_paths:
@@ -97,95 +106,96 @@ def sync_back_tasks():
                 lines = f.readlines()
 
             for line in lines:
-                id_match = ID_PATTERN.search(line)
-                if id_match:
-                    task_id = f"^{id_match.group(1)}"
-                    if task_id in tasks_to_update:
-                        task_data = tasks_to_update[task_id]
+                if is_task(line):
+                    id_match = re.search(ID_PATTERN, line)
+                    if id_match:
+                        task_id = id_match.group(0)
+                        if task_id in tasks_to_update:
+                            current_status = line.lstrip()[3]
+                            text_start_idx = line.find("]") + 2
+                            text_end_idx = line.find(task_id)
+                            current_text = line[text_start_idx:text_end_idx].strip()
 
-                        if task_data["todo_mtime"] > note_mtime:
-                            orig_match = ORIGINAL_TASK_PATTERN.match(line)
-                            if orig_match:
-                                prefix = orig_match.group(1)
-                                suffix = orig_match.group(2)
-                                new_line = f"{prefix}{task_data['status']}{suffix}{task_data['text']} {task_id}\n"
+                            # Normalizamos espacios para que no falle por chorradas de formato
+                            current_text_clean = " ".join(current_text.split())
 
-                                if line != new_line:
-                                    line = new_line
-                                    changed = True
+                            for data in tasks_to_update[task_id]:
+                                data_text_clean = " ".join(data["text"].split())
+
+                                if data["todo_mtime"] >= note_mtime:
+                                    if (
+                                        data_text_clean != current_text_clean
+                                        or data["status"] != current_status
+                                    ):
+                                        print(f"🔄 ACTUALIZANDO NOTA: {note_name}")
+                                        print(
+                                            f"  - Antes: {current_text_clean} [{current_status}]"
+                                        )
+                                        print(
+                                            f"  - Ahora: {data_text_clean} [{data['status']}]"
+                                        )
+
+                                        prefix_spaces = line[
+                                            : len(line) - len(line.lstrip())
+                                        ]
+                                        new_line = f"{prefix_spaces}- [{data['status']}] {data['text']} {task_id}\n"
+
+                                        if line != new_line:
+                                            line = new_line
+                                            changed = True
+                                        break
                 updated_lines.append(line)
 
             if changed:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.writelines(updated_lines)
         except Exception as e:
-            print(f"Error procesando {file_path}: {e}")
+            print(f"Error en {file_path}: {e}")
 
 
 def process_line(line):
-    """
-    Auto-formatea la línea de la tarea:
-    1. Extrae tags e IDs de cualquier parte.
-    2. Limpia el texto de espacios extra.
-    3. Reconstruye garantizando: Texto -> Tags -> ID.
-    """
-    # Solo procesa si es una tarea
-    if not re.match(r"^\s*-\s*\[[ xX]\]", line):
+    if not is_task(line):
         return line
 
     clean_line = line.rstrip()
 
-    # Extraer ID
-    id_match = ID_PATTERN.search(clean_line)
+    id_match = re.search(ID_PATTERN, clean_line)
     task_id = id_match.group(0) if id_match else ""
 
-    # Si es una tarea pendiente sin ID, generamos uno nuevo
     if not task_id and clean_line.lstrip().startswith("- [ ]"):
-        task_id = generate_id().strip()
+        task_id = generate_id()
 
-    # Extraer Tags
-    tags = TAG_PATTERN.findall(clean_line)
+    tags = re.findall(TAG_PATTERN, clean_line)
 
-    # Limpiar la línea base quitando ID y tags
     raw_text = clean_line
     if id_match:
-        raw_text = raw_text.replace(id_match.group(0), "")
+        raw_text = raw_text.replace(task_id, "")
     for tag in set(tags):
         raw_text = re.sub(rf"(?<!\S){tag}(?!\S)", "", raw_text)
 
-    # Extraemos el prefijo (ej: "  - [ ]") y el texto residual
-    prefix_match = re.match(r"^(\s*-\s*\[[ xX]\])(.*)$", raw_text)
-    if prefix_match:
-        prefix = prefix_match.group(1)
-        text_content = prefix_match.group(2)
+    stripped = raw_text.lstrip()
+    prefix_spaces = raw_text[: len(raw_text) - len(stripped)]
+    status_box = stripped[:5]
+    text_content = stripped[5:].strip()
 
-        # Eliminamos múltiples espacios extraños en el texto
-        text_content = re.sub(r"\s+", " ", text_content).strip()
+    text_content = " ".join(text_content.split())
 
-        # Reconstrucción con el orden (tarea + tag + id + [[filename]])
-        new_line = prefix
-        if text_content:
-            new_line += f" {text_content}"
+    new_line = prefix_spaces + status_box
+    if text_content:
+        new_line += f" {text_content}"
+    if tags:
+        new_line += f" {' '.join(tags)}"
+    if task_id:
+        new_line += f" {task_id}"
 
-        tags_str = " ".join(tags)
-        if tags_str:
-            new_line += f" {tags_str}"
-
-        if task_id:
-            new_line += f" {task_id}"
-
-        return new_line + "\n"
-
-    return line
+    return new_line + "\n"
 
 
-# Sincronizar hacia atrás
 sync_back_tasks()
 
 inbox_tasks = []
 priority_tasks = {}
 
-# Procesar notas (auto-formatear, recolectar tareas)
 for root, dirs, files in os.walk(NOTES_DIR):
     dirs[:] = [
         d
@@ -197,15 +207,17 @@ for root, dirs, files in os.walk(NOTES_DIR):
     for file in files:
         if not file.endswith(".md") or file in {TODO_NOTE, TODO_PRIORITY}:
             continue
+
         file_path = os.path.join(root, file)
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except Exception:
             continue
-        file_changed = False
 
+        file_changed = False
         new_lines = []
+
         for line in lines:
             processed_line = process_line(line)
 
@@ -213,20 +225,23 @@ for root, dirs, files in os.walk(NOTES_DIR):
                 file_changed = True
             new_lines.append(processed_line)
 
-            if processed_line.lstrip().startswith("- [ ]"):
-                tags = TAG_PATTERN.findall(processed_line)
+            if is_task(processed_line) and processed_line.lstrip().startswith("- [ ]"):
+                tags = re.findall(TAG_PATTERN, processed_line)
                 nombre_nota = file.replace(".md", "")
 
                 clean_task = processed_line.rstrip()
                 task_with_link = f"{clean_task} [[{nombre_nota}]]"
 
                 if tags:
-                    for tag in tags:
-                        if tag not in priority_tasks:
-                            priority_tasks[tag] = []
-                        # Evita añadir la misma tarea varias veces si duplicaste un tag
-                        if task_with_link not in priority_tasks[tag]:
-                            priority_tasks[tag].append(task_with_link)
+                    # Usamos exclusivamente el primer tag para crear la sección
+                    primer_tag = tags[0]
+
+                    if primer_tag not in priority_tasks:
+                        priority_tasks[primer_tag] = []
+
+                    # La variable task_with_link sigue teniendo todos los tags extra pegados al final
+                    if task_with_link not in priority_tasks[primer_tag]:
+                        priority_tasks[primer_tag].append(task_with_link)
                 else:
                     inbox_tasks.append(task_with_link)
 
@@ -243,8 +258,6 @@ def sort_key(tag):
     return 999, tag
 
 
-# Escribir archivos TODO
-# Inbox
 inbox_path = os.path.join(NOTES_DIR, TODO_NOTE)
 with open(inbox_path, "w", encoding="utf-8") as f:
     f.write("---\nid: 01_todo_inbox\ntags: []\naliases: []\n---\n\n# 📥 Inbox\n\n")
@@ -254,7 +267,6 @@ with open(inbox_path, "w", encoding="utf-8") as f:
         for t in inbox_tasks:
             f.write(f"{t}\n")
 
-# Priority
 priority_path = os.path.join(NOTES_DIR, TODO_PRIORITY)
 with open(priority_path, "w", encoding="utf-8") as f:
     f.write("---\nid: 00_todo\ntags: []\naliases: []\n---\n\n# 🏷️ Tareas por Tag\n\n")
