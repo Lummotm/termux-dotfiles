@@ -1,44 +1,29 @@
 #!/usr/bin/env bash
 set -e
 
-# Configuración
 source "$HOME/.termux_device_info" 2>/dev/null || TERMUX_DEVICE_NAME="móvil"
 REPO_DIR="$HOME/keepass"
 SHARED_DIR="$HOME/storage/shared/keepass"
 
-# Verificar conexión antes de empezar
-if ! git ls-remote "$REPO_DIR" >/dev/null 2>&1; then
-    echo "Error: Sin conexión al repositorio remoto."
-    exit 1
-fi
+rsync -av --delete "$SHARED_DIR/" "$REPO_DIR/"
 
-mkdir -p "$SHARED_DIR"
-
-echo "1. Sincronizando: Móvil -> Repo local"
-# -u para actualizar solo si el origen es más nuevo
-rsync -avu "$SHARED_DIR/" "$REPO_DIR/"
-
-echo "2. Gestionando cambios en git"
 cd "$REPO_DIR"
-git add -A
 
+git rebase --abort >/dev/null 2>&1 || true
+
+git add -A
 if ! git diff --cached --quiet; then
-    TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
-    git commit -m "Sync desde $TERMUX_DEVICE_NAME $TIMESTAMP"
-    echo "Cambios confirmados."
-else
-    echo "Sin cambios pendientes."
+    git commit -m "Sync KeePass ($TERMUX_DEVICE_NAME) $(date '+%Y-%m-%d %H:%M')"
 fi
 
-echo "3. Actualizando desde remoto (pull --rebase)"
-git pull --rebase
+# Gana el pc en pull
+if ! git pull --rebase -Xtheirs origin main; then
+    echo "Conflicto binario detectado, forzando versión del servidor..."
+    git rebase --abort
+    git fetch origin main
+    git reset --hard origin/main
+fi
 
-echo "4. Subiendo cambios (push)"
-git push
+git push origin main
 
-echo "5. Sincronizando: Repo local -> Móvil"
-# --delete asegura que el móvil sea un espejo exacto del estado final del repo
-mkdir -p "$SHARED_DIR"
 rsync -av --delete "$REPO_DIR/" "$SHARED_DIR/"
-
-echo "Sincronización Keepass finalizada."
