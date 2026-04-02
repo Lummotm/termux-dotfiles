@@ -5,4 +5,3 @@ echo ""
 
 echo "--- Sincronizando KeePass ---"
 bash ~/scripts/sync-keepass-phone.sh
-echo ""
