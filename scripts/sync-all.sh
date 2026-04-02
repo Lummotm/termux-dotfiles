@@ -6,6 +6,3 @@ echo ""
 echo "--- Sincronizando KeePass ---"
 bash ~/scripts/sync-keepass-phone.sh
 echo ""
-
-# Opcional: Notificación visual en Termux
-termux-toast "Sincronización completa: Obsidian y KeePass"
