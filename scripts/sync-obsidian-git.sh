@@ -19,11 +19,16 @@ if [ "$FORCE_EXTERNAL" = true ]; then
     git reset --hard origin/main
 
 elif [ "$FORCE_LOCAL" = true ]; then
-    echo "F-LOC: Forzando mis cambios locales al servidor..."
+    echo "F-LOC: Limpiando bloqueos y forzando local..."
+    # Abortamos cualquier bloqueo posible
+    git rebase --abort >/dev/null 2>&1 || true
+    git merge --abort >/dev/null 2>&1 || true
+
+    git checkout main >/dev/null 2>&1 || true
+
     git add -A
     git commit -m "$COMMIT_MESSAGE" || true
     git push origin main --force
-
 else
     git add -A
     if ! git diff --cached --quiet; then
