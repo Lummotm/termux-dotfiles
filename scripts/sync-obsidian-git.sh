@@ -7,6 +7,11 @@ REPO_DIR="$HOME/obsidian"
 SHARED_DIR="$HOME/storage/shared/obsidian"
 COMMIT_MESSAGE="Sync ($TERMUX_DEVICE_NAME) $(date '+%Y-%m-%d %H:%M')"
 
+if ! [[ -d "$SHARED_DIR" ]]; then
+	rsync -av --exclude ".git/"  "$REPO_DIR/" "$SHARED_DIR/"
+fi
+
+
 rsync -av --delete --exclude ".git/" "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
