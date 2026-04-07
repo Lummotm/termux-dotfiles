@@ -11,17 +11,17 @@ FORCE_EXTERNAL=false
 FORCE_LOCAL=false
 
 case "$1" in
-    --force-external)
-        FORCE_EXTERNAL=true
-        echo "=> Iniciando en modo: FORZAR EXTERNO"
-        ;;
-    --force-local)
-        FORCE_LOCAL=true
-        echo "=> Iniciando en modo: FORZAR LOCAL"
-        ;;
-    *)
-        echo "=> Iniciando en modo: Sincronización normal"
-        ;;
+--force-external)
+    FORCE_EXTERNAL=true
+    echo "=> Iniciando en modo: FORZAR EXTERNO"
+    ;;
+--force-local)
+    FORCE_LOCAL=true
+    echo "=> Iniciando en modo: FORZAR LOCAL"
+    ;;
+*)
+    echo "=> Iniciando en modo: Sincronización normal"
+    ;;
 esac
 
 if ! [[ -d "$SHARED_DIR" ]]; then
@@ -44,16 +44,19 @@ if [ "$FORCE_EXTERNAL" = true ]; then
     git fetch origin main
 
     git reset --hard origin/main
-
     git clean -fd
 
 elif [ "$FORCE_LOCAL" = true ]; then
+    echo "[F-LOC] Forzando local. Aplastando el remoto..."
+
     git rebase --abort >/dev/null 2>&1 || true
     git merge --abort >/dev/null 2>&1 || true
     git checkout main >/dev/null 2>&1 || true
+
     git add -A
     git commit -m "$COMMIT_MESSAGE" || true
     git push origin main --force
+
 else
     git add -A
     if ! git diff --cached --quiet; then
