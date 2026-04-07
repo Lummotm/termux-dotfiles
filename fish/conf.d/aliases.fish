@@ -1,6 +1,6 @@
 alias sd "$HOME/termux-dotfiles/setup.sh --sync" # sync dotfiles
-alias snf "$HOME/scripts/sync-obsidian-git.sh -f" #sync notes forced
-alias sne "$HOME/scripts/sync-obsidian-git.sh -fe" # forced external
+alias snf "$HOME/scripts/sync-obsidian-git.sh --force-local" #sync notes forced
+alias sne "$HOME/scripts/sync-obsidian-git.sh --force-external" # forced external
 alias sa "$HOME/scripts/sync-all.sh" #sync notes 
 alias startssh "$HOME/scripts/startssh.sh"
 alias clc "clear"
