@@ -9,11 +9,12 @@ if len(sys.argv) > 1:
 else:
     NOTES_DIR = os.path.expanduser("~/Documents/Obsidian/")
 
-EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault"}
+TASKS_SUBDIR = "00_tasks"
+EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault", TASKS_SUBDIR}
 
-TODO_FOCUS = "00_focus.md"
-TODO_BACKLOG = "01_todo.md"
-TODO_INBOX = "02_todo_inbox.md"
+TODO_FOCUS = os.path.join(TASKS_SUBDIR, "00_focus.md")
+TODO_BACKLOG = os.path.join(TASKS_SUBDIR, "01_todo.md")
+TODO_UNTAGGED = os.path.join(TASKS_SUBDIR, "02_untagged.md")
 
 FOCUS_TAGS = {
     "#urgent",
@@ -34,12 +35,9 @@ def generate_id():
 
 def is_task(line):
     s = line.strip()
-
     if not (s.startswith("- [ ]") or s.lower().startswith("- [x]")):
         return False
-
     content = s[5:].strip()
-
     return bool(content)
 
 
@@ -63,7 +61,7 @@ def sync_back_tasks():
     todo_files = [
         os.path.join(NOTES_DIR, TODO_FOCUS),
         os.path.join(NOTES_DIR, TODO_BACKLOG),
-        os.path.join(NOTES_DIR, TODO_INBOX),
+        os.path.join(NOTES_DIR, TODO_UNTAGGED),
     ]
 
     for todo_path in todo_files:
@@ -88,12 +86,11 @@ def sync_back_tasks():
                 note_name = links[-1]
 
                 # Extraer texto: desde el final del checkbox hasta el inicio del ID
-                # pero quitando el link de la nota que está al final.
                 text_start_idx = line.find("]") + 2
                 text_end_idx = line.find(task_id)
                 text = line[text_start_idx:text_end_idx].strip()
 
-                # Eliminar el link de la nota del texto si se coló (por si el ID está después del link)
+                # Eliminar el link de la nota del texto si se coló
                 text = text.replace(f"[[{note_name}]]", "").strip()
 
                 if note_name not in updates_by_note:
@@ -138,7 +135,7 @@ def sync_back_tasks():
                 id_match = re.search(ID_PATTERN, line)
                 if id_match and id_match.group(0) in tasks:
                     data = tasks[id_match.group(0)]
-                    # Sincronizamos si el archivo TODO es más nuevo o igual (por margen de error)
+                    # Sincronizamos si el archivo TODO es más nuevo o igual
                     if data["todo_mtime"] >= note_mtime:
                         prefix = line[: line.find("-")]
                         new_line = f"{prefix}- [{data['status']}] {data['text']} {id_match.group(0)}\n"
@@ -176,10 +173,17 @@ def process_line(line):
 
 
 def write_tasks(filename, title, tasks_dict, is_list=False):
-    path = os.path.join(NOTES_DIR, filename)
-    with open(path, "w", encoding="utf-8") as f:
+    full_path = os.path.join(NOTES_DIR, filename)
+
+    # Asegurarnos de que el directorio existe antes de escribir
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+    # Nombre para el ID del YAML sin la ruta de la carpeta
+    base_filename = os.path.basename(filename)
+
+    with open(full_path, "w", encoding="utf-8") as f:
         f.write(
-            f"---\nid: {filename.replace('.md', '')}\naliases: []\ntags: []\n---\n\n# {title}\n\n"
+            f"---\nid: {base_filename.replace('.md', '')}\naliases: []\ntags: []\n---\n\n# {title}\n\n"
         )
         if is_list:
             for t in tasks_dict:
@@ -196,10 +200,11 @@ def write_tasks(filename, title, tasks_dict, is_list=False):
 # Sincronizar de TODOs -> Notas originales
 sync_back_tasks()
 
-inbox, focus, backlog = [], {}, {}
+untagged, focus, backlog = [], {}, {}
 
-# Recolectar de Notas -> TODOs (esto incluye los cambios recién guardados)
+# Recolectar de Notas -> TODOs
 for root, dirs, files in os.walk(NOTES_DIR):
+    # Excluir la carpeta tasks/ entera, ocultos y otras carpetas
     dirs[:] = [
         d
         for d in dirs
@@ -207,7 +212,7 @@ for root, dirs, files in os.walk(NOTES_DIR):
     ]
 
     for file in files:
-        if not file.endswith(".md") or file in {TODO_FOCUS, TODO_BACKLOG, TODO_INBOX}:
+        if not file.endswith(".md"):
             continue
 
         path = os.path.join(root, file)
@@ -230,7 +235,7 @@ for root, dirs, files in os.walk(NOTES_DIR):
                 task_with_link = f"{p_line.rstrip()} [[{file[:-3]}]]"
 
                 if not tags:
-                    inbox.append(task_with_link)
+                    untagged.append(task_with_link)
                 else:
                     target = focus if any(t in FOCUS_TAGS for t in tags) else backlog
                     main_tag = min(tags, key=tag_priority)
@@ -242,6 +247,7 @@ for root, dirs, files in os.walk(NOTES_DIR):
             with open(path, "w", encoding="utf-8") as f:
                 f.writelines(new_lines)
 
+# Escribir los resultados en la subcarpeta tasks/
 write_tasks(TODO_FOCUS, "Focus", focus)
 write_tasks(TODO_BACKLOG, "Todo", backlog)
-write_tasks(TODO_INBOX, "Inbox", inbox, is_list=True)
+write_tasks(TODO_UNTAGGED, "Untagged", untagged, is_list=True)
