@@ -67,6 +67,7 @@ else
     git push origin main
 fi
 
-rsync -av --delete --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+# Ignore useless errors via --quiet form errors ocurring from symlinks
+rsync -av --delete --exclude --quiet ".git/" "$REPO_DIR/" "$SHARED_DIR/"
 
 echo "Sincronización completada con éxito."
