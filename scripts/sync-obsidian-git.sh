@@ -44,6 +44,7 @@ if [ "$FORCE_EXTERNAL" = true ]; then
     git fetch origin main
 
     git reset --hard origin/main
+    git pull -f origin/main
     git clean -fd
 
 elif [ "$FORCE_LOCAL" = true ]; then
