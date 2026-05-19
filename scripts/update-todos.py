@@ -10,7 +10,14 @@ else:
     NOTES_DIR = os.path.expanduser("~/Documents/Obsidian/")
 
 TASKS_SUBDIR = "00_tasks"
-EXCLUDING_KEYWORDS = {"attachments", "excalidraw", ".git", "books_vault", TASKS_SUBDIR}
+EXCLUDING_KEYWORDS = {
+    "attachments",
+    "excalidraw",
+    ".git",
+    "books_vault",
+    "00_seguimiento",
+    TASKS_SUBDIR,
+}
 
 TODO_FOCUS = os.path.join(TASKS_SUBDIR, "00_focus.md")
 TODO_BACKLOG = os.path.join(TASKS_SUBDIR, "01_todo.md")
@@ -22,6 +29,7 @@ FOCUS_TAGS = {
     "#math/analisis",
     "#math/compleja",
     "#math/diferenciales",
+    "#math/codigos",
     "#uni",
 }
 
@@ -35,8 +43,15 @@ def generate_id():
 
 def is_task(line):
     s = line.strip()
+    e = line.replace("\n", "")
+
+    # No es una task
     if not (s.startswith("- [ ]") or s.lower().startswith("- [x]")):
         return False
+
+    if len(e) != len(s):
+        return False
+
     content = s[5:].strip()
     return bool(content)
 
@@ -246,6 +261,15 @@ for root, dirs, files in os.walk(NOTES_DIR):
         if changed:
             with open(path, "w", encoding="utf-8") as f:
                 f.writelines(new_lines)
+
+
+def parse_completed():
+    """
+    If completed all tasks should go to $OBS_DIR/inbox.md within the # Completed section
+    """
+
+    True
+
 
 # Escribir los resultados en la subcarpeta tasks/
 write_tasks(TODO_FOCUS, "Focus", focus)
