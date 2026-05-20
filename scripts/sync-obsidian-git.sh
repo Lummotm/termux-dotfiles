@@ -10,6 +10,13 @@ COMMIT_MESSAGE="Sync ($TERMUX_DEVICE_NAME) $(date '+%Y-%m-%d %H:%M')"
 FORCE_EXTERNAL=false
 FORCE_LOCAL=false
 
+if ! [[ -d "$SHARED_DIR" ]]; then
+    echo "=> La carpeta en storage/shared no existe. Creando y poblando..."
+    mkdir -p "$SHARED_DIR"
+    rsync -av --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+    exit 0
+fi
+
 case "$1" in
 --force-external)
     FORCE_EXTERNAL=true
