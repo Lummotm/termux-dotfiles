@@ -13,7 +13,7 @@ FORCE_LOCAL=false
 if ! [[ -d "$SHARED_DIR" ]]; then
     echo "=> La carpeta en storage/shared no existe. Creando y poblando..."
     mkdir -p "$SHARED_DIR"
-    rsync -av --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+    rsync -av --exclude="/.git" "$REPO_DIR/" "$SHARED_DIR/"
     exit 0
 fi
 
@@ -32,10 +32,10 @@ case "$1" in
 esac
 
 if ! [[ -d "$SHARED_DIR" ]]; then
-    rsync -av --exclude ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+    rsync -av --exclude="/.git" "$REPO_DIR/" "$SHARED_DIR/"
 fi
 
-rsync -av --delete --exclude ".git/" "$SHARED_DIR/" "$REPO_DIR/"
+rsync -av --delete --exclude="/.git" "$SHARED_DIR/" "$REPO_DIR/"
 
 cd "$REPO_DIR"
 
@@ -73,7 +73,6 @@ else
     git push origin main
 fi
 
-# Ignore useless errors via --quiet form errors ocurring from symlinks
-rsync -av --delete --exclude --quiet ".git/" "$REPO_DIR/" "$SHARED_DIR/"
+rsync -av --delete --exclude="/.git" "$REPO_DIR/" "$SHARED_DIR/"
 
 echo "Sincronización completada con éxito."
